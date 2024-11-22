@@ -25,6 +25,28 @@ class PID:
         return self.kp * error + self.ki * self.integral + self.kd * derivative
 
 
+def detected_stop(frame, roi_height=0.2):
+    height, width = frame.shape[:2]
+
+    roi = frame[int(height * (1 - roi_height)) :, :]
+
+    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+
+    _, binary = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)
+
+    lines = cv2.HoughLinesP(
+        binary, 1, np.pi / 180, threshold=100, minLineLength=50, maxLineGap=10
+    )
+
+    if lines is not None:
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            if abs(y2 - y1) < 10:
+                cv2.line(roi, (x1, y1), (x2, y2), (0, 255, 0), 3)
+                return True
+    return False
+
+
 if __name__ == "__main__":
     arduino = serial.Serial("/dev/ttyUSB0", 9600)
 
@@ -184,12 +206,20 @@ if __name__ == "__main__":
 
         steering = pid.compute(lane_center - frame_center)
 
+        if detected_stop(frame):
+            arduino.write("S\n".encode())
+            println("Stop.\n")
+            break
+
         if steering > 20:
             arduino.write("R\n".encode())
+            println("Right.\n")
         elif offset < -20:
             arduino.write("L\n".encode())
+            println("Left.\n")
         else:
             arduino.write("F\n".encode())
+            println("Forward.\n")
 
         postprocessing = numpy.dstack((warped, warped, warped)) * 255
 
