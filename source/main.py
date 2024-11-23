@@ -226,7 +226,7 @@ if __name__ == "__main__":
         if steering > 20:
             arduino.write("R")
             print("Right.\n")
-        elif offset < -20:
+        elif steering < -20:
             arduino.write("L")
             print("Left.\n")
         else:
