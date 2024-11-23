@@ -1,6 +1,15 @@
 import cv2
 import numpy
-import serial
+
+from serial import Serial
+
+
+class Arduino:
+    def __init__(self, filename, baud_rate):
+        self.serial = Serial(filename, baud_rate)
+
+    def write(self, command):
+        self.write(f"{command}\n".encode())
 
 
 class PID:
@@ -35,7 +44,7 @@ def detected_stop(frame, roi_height=0.2):
     _, binary = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)
 
     lines = cv2.HoughLinesP(
-        binary, 1, np.pi / 180, threshold=100, minLineLength=50, maxLineGap=10
+        binary, 1, numpy.pi / 180, threshold=100, minLineLength=50, maxLineGap=10
     )
 
     if lines is not None:
@@ -48,13 +57,16 @@ def detected_stop(frame, roi_height=0.2):
 
 
 if __name__ == "__main__":
-    arduino = serial.Serial("/dev/ttyUSB0", 9600)
+    arduino = Arduino("/dev/ttyUSB0", 9600)
 
     camera = cv2.VideoCapture(0)
 
     pid = PID(kp=0.1, ki=0.01, kd=0.5)
 
     while True:
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
+
         ret, frame = camera.read()
 
         if not ret:
@@ -207,19 +219,19 @@ if __name__ == "__main__":
         steering = pid.compute(lane_center - frame_center)
 
         if detected_stop(frame):
-            arduino.write("S\n".encode())
-            println("Stop.\n")
+            arduino.write("S")
+            print("Stop.\n")
             break
 
         if steering > 20:
-            arduino.write("R\n".encode())
-            println("Right.\n")
+            arduino.write("R")
+            print("Right.\n")
         elif offset < -20:
-            arduino.write("L\n".encode())
-            println("Left.\n")
+            arduino.write("L")
+            print("Left.\n")
         else:
-            arduino.write("F\n".encode())
-            println("Forward.\n")
+            arduino.write("F")
+            print("Forward.\n")
 
         postprocessing = numpy.dstack((warped, warped, warped)) * 255
 
@@ -237,9 +249,6 @@ if __name__ == "__main__":
             )
 
         cv2.imshow("Camera", frame)
-
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
 
     camera.release()
 
