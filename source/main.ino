@@ -6,9 +6,9 @@
 
 #define ESC_MAX_BACKWARD 60
 
-#define ESC_LEFT_PIN 9
+#define ESC_LEFT_PIN 10
 
-#define ESC_RIGHT_PIN 10
+#define ESC_RIGHT_PIN 9
 
 Servo leftESC;
 
