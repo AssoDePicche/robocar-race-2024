@@ -1,73 +1,126 @@
 #include <Servo.h>
 
-#define ESC_STOP 90
-
-#define ESC_MAX_FORWARD 120
-
-#define ESC_MAX_BACKWARD 60
-
 #define ESC_LEFT_PIN 10
 
 #define ESC_RIGHT_PIN 9
 
-Servo leftESC;
+#define MIN_SPEED (long)20
 
-Servo rightESC;
+#define MAX_SPEED (long)100
 
-float leftTargetSpeed = 0.0f;
+#define DELTA_SPEED (long)5
 
-float rightTargetSpeed = 0.0f;
+struct Speed {
+  long x;
+  long y;
+
+  Speed(long k) : x{k}, y{k} {}
+
+  Speed(long x, long y) : x{x}, y{x} {}
+
+  Speed operator+(long k) {
+    x += k;
+    y += k;
+  }
+
+  Speed operator-(long k) {
+    x -= k;
+    y -= k;
+  }
+};
+
+long SpeedRemap(long value) {
+  long remap = map(value, 0, 1023, 0, 180);
+
+  return constrain(remap, MIN_SPEED, MAX_SPEED);
+}
+
+struct Car {
+  Servo left;
+  Servo right;
+  Speed speed;
+
+  Car(int leftPin, int rightPin): speed{MIN_SPEED} {
+    left.attach(leftPin);
+
+    right.attach(rightPin);
+  }
+
+  void Update() {
+    left.write(SpeedRemap(this->speed.x));
+
+    right.write(SpeedRemap(this->speed.y));
+  }
+
+  void SetSpeed(Speed speed) {
+    this->speed = speed;
+  }
+
+  Speed GetSpeed(void) {
+    return speed;
+  }
+
+  void Forward(void) {
+    SetSpeed(Speed(MAX_SPEED / 2));
+  }
+
+  void Left(void) {
+    this->speed.x -= DELTA_SPEED;
+
+    this->speed.y += DELTA_SPEED;
+  }
+
+  void Right(void) {
+    this->speed.x += DELTA_SPEED;
+
+    this->speed.y -= DELTA_SPEED;
+  }
+
+  void Stop(void) {
+    SetSpeed(Speed(MIN_SPEED));
+  }
+};
+
+Car car(ESC_LEFT_PIN, ESC_RIGHT_PIN);
 
 void setup() {
   Serial.begin(9600);
-
-  leftESC.attach(ESC_LEFT_PIN);
-
-  rightESC.attach(ESC_RIGHT_PIN);
-
-  leftESC.write(ESC_STOP);
-
-  rightESC.write(ESC_STOP);
 }
 
 void loop() {
   if (Serial.available()) {
+    Speed speed = car.GetSpeed();
+
+    Serial.print("L Speed: ");
+
+    Serial.println(speed.x);
+
+    Serial.print("R Speed: ");
+
+    Serial.println(speed.y);
+    
     char command = Serial.read();
 
     switch (command) {
       case 'F':
-        leftTargetSpeed = 100;
-        rightTargetSpeed = 100;
+        car.Forward();
         break;
       case 'L':
-        leftTargetSpeed = -50;
-        rightTargetSpeed = 50;
+        car.Left();
         break;
       case 'R':
-        leftTargetSpeed = 50;
-        rightTargetSpeed = -50;
+        car.Right();
         break;
       case 'S':
-        leftTargetSpeed = 0;
-        rightTargetSpeed = 0;
+        car.Stop();
         break;
-      default:
-        Serial.println("Command error.");
+      case '+':
+        car.SetSpeed(speed + DELTA_SPEED);
+        break;
+      case '-':
+        car.SetSpeed(speed - DELTA_SPEED);
+    }
+
+    car.Update();
   }
-
-  setESC(leftESC, leftTargetSpeed);
-
-  setESC(rightESC, rightTargetSpeed);
-}
-
-void setESC(Servo &esc, float speed) {
-  int pwm = ESC_STOP;
-
-  if (speed > 0) {
-    pwm = ESC_STOP + map(speed, 0, 100, 0, ESC_MAX_FORWARD - ESC_STOP);
-  } else if (speed < 0) {
-    pwm = ESC_STOP + map(speed, 0, -100, 0, ESC_STOP - ESC_MAX_BACKWARD);
-  }
-
-  esc.write(constrain(pwm, ESC_MAX_BACKWARD, ESC_MAX_FORWARD));
 }
