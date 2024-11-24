@@ -2,14 +2,14 @@ import cv2
 import numpy
 
 from arduino import Arduino, PID
-from lane_detection import preprocessing_pipeline
+from lane_detection import compute_error, lane_detection, preprocessing_pipeline
 
 if __name__ == "__main__":
-    #arduino = Arduino("/dev/ttyUSB0", 9600)
+    arduino = Arduino("/dev/ttyACM0", 9600)
 
-    camera = cv2.VideoCapture("../video/001.mp4")
+    camera = cv2.VideoCapture("/dev/video0")
 
-    pid = PID(kp=0.1, ki=0.01, kd=0.5)
+    pid = PID(kp=1., ki=0.05, kd=0.5)
 
     while True:
         if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -23,21 +23,27 @@ if __name__ == "__main__":
 
         frame = preprocessing_pipeline(frame)
 
-        steering = pid.compute(42)
+        left_fit, right_fit = lane_detection(frame)
 
-        if steering > 20:
-            #arduino.write("R")
+        error = pid.compute(compute_error(frame, left_fit, right_fit)) / 1000.
+
+        error_tolerance = 1.25;
+
+        print(f"PID {error}\n")
+
+        if error > error_tolerance:
+            arduino.write("R")
             print("Right.\n")
-        elif steering < -20:
-            #arduino.write("L")
+        elif error < -error_tolerance:
+            arduino.write("L")
             print("Left.\n")
         else:
-            #arduino.write("F")
+            arduino.write("F")
             print("Forward.\n")
 
         cv2.imshow("Camera", frame)
 
-    #arduino.write("S")
+    arduino.write("S")
 
     print("Stop.\n")
 
