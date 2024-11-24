@@ -1,60 +1,7 @@
 import cv2
 import numpy
 
-from serial import Serial
-
-
-class Arduino:
-    def __init__(self, filename, baud_rate):
-        self.serial = Serial(filename, baud_rate)
-
-    def write(self, command):
-        self.write(f"{command}\n".encode())
-
-
-class PID:
-    def __init__(self, kp, ki, kd):
-        self.kp = kp
-
-        self.ki = ki
-
-        self.kd = kd
-
-        self.previous_error = 0.0
-
-        self.integral = 0.0
-
-    def compute(self, error):
-        self.integral += error
-
-        derivative = error - self.previous_error
-
-        self.previous_error = error
-
-        return self.kp * error + self.ki * self.integral + self.kd * derivative
-
-
-def detected_stop(frame, roi_height=0.2):
-    height, width = frame.shape[:2]
-
-    roi = frame[int(height * (1 - roi_height)) :, :]
-
-    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-
-    _, binary = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)
-
-    lines = cv2.HoughLinesP(
-        binary, 1, numpy.pi / 180, threshold=100, minLineLength=50, maxLineGap=10
-    )
-
-    if lines is not None:
-        for line in lines:
-            x1, y1, x2, y2 = line[0]
-            if abs(y2 - y1) < 10:
-                cv2.line(roi, (x1, y1), (x2, y2), (0, 255, 0), 3)
-                return True
-    return False
-
+from arduino import Arduino, PID
 
 if __name__ == "__main__":
     arduino = Arduino("/dev/ttyUSB0", 9600)
