@@ -4,9 +4,9 @@ import numpy
 from arduino import Arduino, PID
 
 if __name__ == "__main__":
-    arduino = Arduino("/dev/ttyUSB0", 9600)
+    #arduino = Arduino("/dev/ttyUSB0", 9600)
 
-    camera = cv2.VideoCapture(0)
+    camera = cv2.VideoCapture("../video/001.mp4")
 
     pid = PID(kp=0.1, ki=0.01, kd=0.5)
 
@@ -165,19 +165,14 @@ if __name__ == "__main__":
 
         steering = pid.compute(lane_center - frame_center)
 
-        if detected_stop(frame):
-            arduino.write("S")
-            print("Stop.\n")
-            break
-
         if steering > 20:
-            arduino.write("R")
+            #arduino.write("R")
             print("Right.\n")
         elif steering < -20:
-            arduino.write("L")
+            #arduino.write("L")
             print("Left.\n")
         else:
-            arduino.write("F")
+            #arduino.write("F")
             print("Forward.\n")
 
         postprocessing = numpy.dstack((warped, warped, warped)) * 255
@@ -196,6 +191,10 @@ if __name__ == "__main__":
             )
 
         cv2.imshow("Camera", frame)
+
+    #arduino.write("S")
+
+    print("Stop.\n")
 
     camera.release()
 
